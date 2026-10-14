@@ -3032,9 +3032,12 @@ export class ServicesService implements OnModuleInit, OnModuleDestroy {
     servicioId: string,
     actorUserId: string,
     forceByBoss: boolean = false,
-  ): Promise<{ prorrogasUsadas: number; restantes: number; minutos: number }> {
-    const MINUTOS = 10;
-
+  ): Promise<{
+    prorrogasUsadas: number;
+    prorrogasSemanalesUsadas: number;
+    restantes: number;
+    minutos: number;
+  }> {
     const servicio = await this.serviciosRepository.findOne({
       where: { id: servicioId },
       relations: {
@@ -3043,27 +3046,41 @@ export class ServicesService implements OnModuleInit, OnModuleDestroy {
       },
     });
     if (!servicio) throw new NotFoundException('Servicio no encontrado');
+    let employeeId: string | null = null;
     if (forceByBoss) {
       await this.assertUserCanManageService(servicio, actorUserId);
-    } else if (!(await this.puedePedirProrroga(servicio, actorUserId))) {
+      employeeId = servicio.empleadaId ?? servicio.empleada?.id ?? null;
+    } else if (
+      !(employeeId = await this.empleadaQuePuedePedirProrroga(
+        servicio,
+        actorUserId,
+      ))
+    ) {
       throw new ForbiddenException(
         'No puedes solicitar prórrogas para este servicio',
       );
     }
 
-    const { extensionNumber } =
-      await this.extensionsService.requestServiceExtension(servicioId, MINUTOS);
+    const { extensionNumber, weeklyNumber, weeklyRemaining, minutes } =
+      await this.extensionsService.requestServiceExtension(
+        servicioId,
+        employeeId ?? undefined,
+      );
 
     // El reloj de espera vuelve a empezar: es lo que hace que la prorroga
     // signifique algo. Sin esto se anota el intento y el servicio se cae igual.
-    this.startWaitTimeout(servicioId, MINUTOS * 60 * 1000);
+    this.startWaitTimeout(servicioId, minutes * 60 * 1000);
 
-    await this.avisarProrrogaAlChofer(servicio, extensionNumber, MINUTOS);
+    await this.avisarProrrogaAlChofer(servicio, weeklyNumber, minutes);
+    if (weeklyRemaining === 0) {
+      await this.avisarUltimaProrrogaAlaEmpleada(servicio, minutes, employeeId);
+    }
 
     return {
       prorrogasUsadas: extensionNumber,
-      restantes: 3 - extensionNumber,
-      minutos: MINUTOS,
+      prorrogasSemanalesUsadas: weeklyNumber,
+      restantes: weeklyRemaining,
+      minutos: minutes,
     };
   }
 
@@ -3075,13 +3092,15 @@ export class ServicesService implements OnModuleInit, OnModuleDestroy {
    * que restringirlo a la titular al mover la logica aqui habria quitado en
    * silencio algo que funcionaba.
    */
-  private async puedePedirProrroga(
+  private async empleadaQuePuedePedirProrroga(
     servicio: Servicios,
     actorUserId: string,
-  ): Promise<boolean> {
-    if (!actorUserId) return false;
-    if (servicio.empleada?.usuarioId === actorUserId) return true;
-    if (servicio.serviceType !== 'grupal') return false;
+  ): Promise<string | null> {
+    if (!actorUserId) return null;
+    if (servicio.empleada?.usuarioId === actorUserId) {
+      return servicio.empleadaId ?? servicio.empleada?.id ?? null;
+    }
+    if (servicio.serviceType !== 'grupal') return null;
 
     const participante = await this.serviceParticipantsRepository.findOne({
       where: {
@@ -3091,7 +3110,7 @@ export class ServicesService implements OnModuleInit, OnModuleDestroy {
       },
       relations: { employee: true },
     });
-    return Boolean(participante);
+    return participante?.employeeId ?? participante?.employee?.id ?? null;
   }
 
   /**
@@ -3102,6 +3121,44 @@ export class ServicesService implements OnModuleInit, OnModuleDestroy {
    * try/catch: la prorroga ya esta concedida y el reloj ya se reinicio, asi que
    * un aviso que falla se registra y no deshace nada.
    */
+  private async avisarUltimaProrrogaAlaEmpleada(
+    servicio: Servicios,
+    minutos: number,
+    employeeId?: string | null,
+  ): Promise<void> {
+    const empleada =
+      employeeId && employeeId !== servicio.empleadaId
+        ? await this.empleadasRepository?.findOne({
+            where: { id: employeeId },
+            relations: { usuario: true },
+          })
+        : servicio.empleada;
+    const chatId = empleada?.usuario?.telegramChatId;
+    const texto = `Esta fue tu ultima prorroga de espera de la semana (${minutos} minutos). Despues de este tiempo ya no habra otra prorroga.`;
+    if (chatId) {
+      await this.telegramService
+        .sendMessage(chatId, texto)
+        .catch((error) =>
+          this.logger.warn(
+            'No se pudo avisar la ultima prorroga semanal',
+            error,
+          ),
+        );
+    }
+    if (empleada?.usuarioId) {
+      await this.notificationsService
+        .notificar(empleada.usuarioId, {
+          titulo: 'Ultima prorroga de espera de la semana',
+          cuerpo: texto,
+          url: '/empleada/portal',
+          tag: `prorroga-final-${servicio.id}`,
+        })
+        .catch((error) =>
+          this.logger.warn('No se pudo enviar la advertencia semanal', error),
+        );
+    }
+  }
+
   private async avisarProrrogaAlChofer(
     servicio: Servicios,
     numero: number,
@@ -3116,7 +3173,7 @@ export class ServicesService implements OnModuleInit, OnModuleDestroy {
       try {
         await this.telegramService.sendMessage(
           chatId,
-          `Aviso de demora: ${nombre} pidió una prórroga de ${minutos} minutos (${numero} de 3). El tiempo de espera se extendió.`,
+          `Aviso de demora: ${nombre} pidió una prórroga de ${minutos} minutos (${numero} de 2 esta semana). El tiempo de espera se extendió.`,
         );
       } catch (err) {
         this.logger.error('Error avisando al chofer de la prórroga:', err);

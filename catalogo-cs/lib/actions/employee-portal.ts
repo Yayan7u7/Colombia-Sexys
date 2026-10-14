@@ -744,7 +744,9 @@ export async function pedirProrroga(
   success: boolean;
   error?: string;
   prorrogasUsadas?: number;
+  prorrogasSemanalesUsadas?: number;
   restantes?: number;
+  minutos?: number;
 }> {
   try {
     const response = await fetch(
@@ -766,7 +768,9 @@ export async function pedirProrroga(
     return {
       success: true,
       prorrogasUsadas: datos.prorrogasUsadas,
+      prorrogasSemanalesUsadas: datos.prorrogasSemanalesUsadas,
       restantes: datos.restantes,
+      minutos: datos.minutos,
     };
   } catch (error: any) {
     console.error("Error al pedir la prorroga:", error);

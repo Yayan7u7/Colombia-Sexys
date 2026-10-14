@@ -9347,7 +9347,12 @@ export class TelegramBookingUpdate {
       select: { id: true },
     });
 
-    let resultado: { prorrogasUsadas: number; restantes: number };
+    let resultado: {
+      prorrogasUsadas: number;
+      prorrogasSemanalesUsadas: number;
+      restantes: number;
+      minutos: number;
+    };
     try {
       resultado = await this.servicesService.solicitarProrroga(
         servicioId,
@@ -9361,20 +9366,22 @@ export class TelegramBookingUpdate {
       return;
     }
 
-    await ctx.answerCbQuery('Prórroga de 10 minutos concedida.');
+    await ctx.answerCbQuery(
+      `Prórroga de ${resultado.minutos} minutos concedida.`,
+    );
 
     // El texto anterior se limpia de avisos de prorrogas previas para que no se
     // apilen uno debajo de otro cada vez que se pide una.
     let texto = (ctx.callbackQuery?.message as any)?.text || '';
     texto = texto.replace(/\n\n⚠️ \*Has solicitado.*?\*/g, '');
-    texto += `\n\n⚠️ *Has solicitado una prórroga. Has usado ${resultado.prorrogasUsadas} de 3 prórrogas.*`;
+    texto += `\n\n⚠️ *Has solicitado una prórroga. Has usado ${resultado.prorrogasSemanalesUsadas} de 2 prórrogas esta semana.*`;
 
     // El boton solo sigue si le queda alguna.
     const botones: any[][] = [];
     if (resultado.restantes > 0) {
       botones.push([
         Markup.button.callback(
-          '⏳ Solicitar Prórroga (10 min)',
+          `⏳ Solicitar prórroga (${resultado.restantes === 1 ? 5 : 10} min)`,
           `pedir_prorroga:${servicioId}`,
         ),
       ]);

@@ -1,8 +1,10 @@
 import {
   APP_LOCALE,
   APP_TIME_ZONE,
+  lunesDeLaSemana,
   mismaSemanaOperativa,
 } from '../common/locale';
+import { weeklyWaitExtensionState } from '../extensions/wait-extension-policy';
 import {
   Injectable,
   NotFoundException,
@@ -1199,6 +1201,12 @@ export class EmployeesService {
       const operationalState =
         activeOrUpcoming.operationalState ??
         operationStateFromLegacy(activeOrUpcoming);
+      const weekStart = lunesDeLaSemana(new Date());
+      const weeklyUsed =
+        empleada.prorrogasEsperaSemanaInicio === weekStart
+          ? (empleada.prorrogasEsperaUsadas ?? 0)
+          : 0;
+      const weeklyState = weeklyWaitExtensionState(weeklyUsed);
       activeServiceDto = {
         id: activeOrUpcoming.id,
         estado: activeOrUpcoming.estado,
@@ -1216,6 +1224,9 @@ export class EmployeesService {
         // Cuantas prorrogas ha gastado: el portal necesita saber si el boton
         // sigue teniendo sentido, y decirle cuantas le quedan antes de tocarlo.
         prorrogasUsadas: activeOrUpcoming.prorrogasUsadas ?? 0,
+        prorrogasSemanalesUsadas: weeklyState.used,
+        prorrogasSemanalesRestantes: weeklyState.remaining,
+        proximaProrrogaMinutos: weeklyState.nextMinutes,
         /*
          * Los datos con los que decide como alistarse.
          *

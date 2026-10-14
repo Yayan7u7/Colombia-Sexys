@@ -167,6 +167,26 @@ export class Empleadas {
   })
   modoBot: boolean;
 
+  /** Semana operativa del cupo de espera de la empleada (lunes, Mexico). */
+  @Column('date', { name: 'prorrogas_espera_semana_inicio', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Inicio de la semana del cupo de prórrogas de espera',
+    type: String,
+    format: 'date',
+  })
+  prorrogasEsperaSemanaInicio: string | null;
+
+  /** Primer uso: 10 minutos; segundo uso: 5 minutos; máximo semanal: 2. */
+  @Column('smallint', {
+    name: 'prorrogas_espera_usadas',
+    default: () => '0',
+  })
+  @ApiProperty({
+    description: 'Prórrogas de espera usadas en la semana operativa',
+    example: 0,
+  })
+  prorrogasEsperaUsadas: number;
+
   @Column('boolean', { name: 'catalogo_activo', default: () => 'true' })
   @ApiProperty({ description: 'Catalogo Activo', example: true })
   catalogoActivo: boolean;

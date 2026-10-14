@@ -817,8 +817,11 @@ export type EmployeePortalActiveService = {
   horaInicio?: string | null;
   horaFinEstimada?: string | null;
   gananciaEstimada: number;
-  /** Prorrogas de espera ya gastadas, de un maximo de tres. */
+  /** Prorrogas de espera registradas en este servicio, para historial. */
   prorrogasUsadas?: number;
+  prorrogasSemanalesUsadas?: number;
+  prorrogasSemanalesRestantes?: number;
+  proximaProrrogaMinutos?: number | null;
   /** Notas que dejó el jefe al autorizar: es lo que tiene que leer antes de salir. */
   notasJefe?: string | null;
   /** Habitación, cuando el cliente la dio. */

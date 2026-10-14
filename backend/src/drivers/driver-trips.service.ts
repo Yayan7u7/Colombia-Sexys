@@ -19,6 +19,8 @@ import { AiMessageService } from '../ai/ai-message.service';
 import { ServicesService } from '../services/services.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { lunesDeLaSemana } from '../common/locale';
+import { weeklyWaitExtensionState } from '../extensions/wait-extension-policy';
 
 /** Lo que la modelo tiene de margen antes de que se le cuente la espera. */
 const ESPERA_MS = 600_000;
@@ -775,6 +777,13 @@ export class DriverTripsService {
     });
     this.servicesService.startWaitTimeout(servicio.id, ESPERA_MS);
 
+    const weekStart = lunesDeLaSemana(new Date());
+    const weeklyUsed =
+      servicio.empleada?.prorrogasEsperaSemanaInicio === weekStart
+        ? (servicio.empleada.prorrogasEsperaUsadas ?? 0)
+        : 0;
+    const weeklyState = weeklyWaitExtensionState(weeklyUsed);
+
     const chatId = servicio.empleada?.usuario?.telegramChatId;
     if (!chatId) return;
 
@@ -799,17 +808,27 @@ export class DriverTripsService {
       `Por favor, reúnete con él para iniciar el viaje.`;
 
     try {
-      const enviado = await this.telegram.sendMessage(chatId, texto, {
-        parseMode: 'Markdown',
-        buttons: [
-          [
-            Markup.button.callback(
-              'Solicitar prórroga (10 min)',
-              `pedir_prorroga:${trip.servicio.id}`,
-            ),
-          ],
-        ],
-      });
+      const enviado = await this.telegram.sendMessage(
+        chatId,
+        `${texto}\n\n${
+          weeklyState.nextMinutes
+            ? `Puedes pedir una prorroga de ${weeklyState.nextMinutes} minutos. Te quedan ${weeklyState.remaining} esta semana.`
+            : 'Ya no tienes prorrogas de espera disponibles esta semana.'
+        }`,
+        {
+          parseMode: 'Markdown',
+          buttons: weeklyState.nextMinutes
+            ? [
+                [
+                  Markup.button.callback(
+                    `Solicitar proroga (${weeklyState.nextMinutes} min)`,
+                    `pedir_prorroga:${trip.servicio.id}`,
+                  ),
+                ],
+              ]
+            : [],
+        },
+      );
 
       trip.telegramEmpleadaMsgChoferLlegadoId = enviado.message_id.toString();
       await this.viajes.update(trip.id, {

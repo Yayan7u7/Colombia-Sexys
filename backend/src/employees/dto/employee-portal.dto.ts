@@ -48,8 +48,11 @@ export interface EmployeePortalActiveService {
   horaInicio?: string | null;
   horaFinEstimada?: string | null;
   gananciaEstimada: number;
-  /** Prorrogas de espera ya gastadas, de un maximo de tres. */
+  /** Prorrogas de espera registradas en este servicio, para historial. */
   prorrogasUsadas?: number;
+  prorrogasSemanalesUsadas?: number;
+  prorrogasSemanalesRestantes?: number;
+  proximaProrrogaMinutos?: number | null;
   /** Notas que dejo el jefe al autorizar. Es lo que tiene que leer antes de salir. */
   notasJefe?: string | null;
   /** Habitacion, cuando el cliente la dio. */

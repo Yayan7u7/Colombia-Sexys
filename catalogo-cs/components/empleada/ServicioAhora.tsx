@@ -17,6 +17,7 @@ import IniciarServicio from "@/components/empleada/IniciarServicio";
 import ExtenderServicio from "@/components/empleada/ExtenderServicio";
 import MarcarLista from "@/components/empleada/MarcarLista";
 import BotonPanico from "@/components/empleada/BotonPanico";
+import PedirProrroga from "@/components/empleada/PedirProrroga";
 import { formatCurrency } from "@/lib/calculations";
 import { APP_LOCALE, APP_TIME_ZONE } from "@/lib/locale";
 import type { EmployeePortalActiveService } from "@/lib/types";
@@ -90,6 +91,8 @@ export default function ServicioAhora({
    * también en el resumen del portal y no solo en la pantalla del servicio.
    */
   const alistandose = Boolean(servicio.esperandoAlistado);
+  const choferYaLlego =
+    servicio.transporte?.tipo === "ida" && servicio.transporte.estado === "llegado";
 
   return (
     <section className="overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-b from-emerald-950/40 to-black shadow-lg">
@@ -217,6 +220,18 @@ export default function ServicioAhora({
           <AccionesDelViaje
             transporte={servicio.transporte}
             accionesDisponibles={servicio.accionesDisponibles}
+            token={token}
+          />
+        )}
+
+        {!enlaceAPantallaPropia && choferYaLlego && (
+          <PedirProrroga
+            servicioId={servicio.id}
+            prorrogasSemanalesUsadas={servicio.prorrogasSemanalesUsadas ?? 0}
+            prorrogasSemanalesRestantes={
+              servicio.prorrogasSemanalesRestantes ?? 0
+            }
+            proximaProrrogaMinutos={servicio.proximaProrrogaMinutos ?? null}
             token={token}
           />
         )}

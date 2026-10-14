@@ -15,9 +15,12 @@ describe('ServicesService solicitarProrroga', () => {
   const MINUTOS_EN_MS = 10 * 60 * 1000;
 
   function armar(servicio: unknown, participante: unknown = null) {
-    const requestServiceExtension = jest
-      .fn()
-      .mockResolvedValue({ extensionNumber: 1, minutes: 10 });
+    const requestServiceExtension = jest.fn().mockResolvedValue({
+      extensionNumber: 1,
+      weeklyNumber: 1,
+      weeklyRemaining: 1,
+      minutes: 10,
+    });
     const sendMessage = jest.fn().mockResolvedValue(undefined);
     const notificar = jest.fn().mockResolvedValue(1);
     const startWaitTimeout = jest.fn();
@@ -66,7 +69,12 @@ describe('ServicesService solicitarProrroga', () => {
     const { service, startWaitTimeout } = armar({
       id: 'servicio-1',
       serviceType: 'individual',
-      empleada: { usuarioId: 'usuario-modelo', nombreArtistico: 'Ana' },
+      empleadaId: 'empleada-1',
+      empleada: {
+        id: 'empleada-1',
+        usuarioId: 'usuario-modelo',
+        nombreArtistico: 'Ana',
+      },
       viajes: [choferEnEspera],
     });
 
@@ -78,7 +86,8 @@ describe('ServicesService solicitarProrroga', () => {
     expect(startWaitTimeout).toHaveBeenCalledWith('servicio-1', MINUTOS_EN_MS);
     expect(resultado).toEqual({
       prorrogasUsadas: 1,
-      restantes: 2,
+      prorrogasSemanalesUsadas: 1,
+      restantes: 1,
       minutos: 10,
     });
   });
@@ -87,7 +96,11 @@ describe('ServicesService solicitarProrroga', () => {
     const { service, sendMessage, notificar } = armar({
       id: 'servicio-1',
       serviceType: 'individual',
-      empleada: { usuarioId: 'usuario-modelo', nombreArtistico: 'Ana' },
+      empleada: {
+        id: 'empleada-1',
+        usuarioId: 'usuario-modelo',
+        nombreArtistico: 'Ana',
+      },
       viajes: [choferEnEspera],
     });
 
@@ -107,7 +120,11 @@ describe('ServicesService solicitarProrroga', () => {
     const { service, requestServiceExtension } = armar({
       id: 'servicio-1',
       serviceType: 'individual',
-      empleada: { usuarioId: 'usuario-modelo', nombreArtistico: 'Ana' },
+      empleada: {
+        id: 'empleada-1',
+        usuarioId: 'usuario-modelo',
+        nombreArtistico: 'Ana',
+      },
       viajes: [],
     });
 
@@ -128,10 +145,18 @@ describe('ServicesService solicitarProrroga', () => {
       {
         id: 'servicio-grupal',
         serviceType: 'grupal',
-        empleada: { usuarioId: 'usuario-titular', nombreArtistico: 'Ana' },
+        empleada: {
+          id: 'empleada-titular',
+          usuarioId: 'usuario-titular',
+          nombreArtistico: 'Ana',
+        },
         viajes: [],
       },
-      { id: 'participante-1' },
+      {
+        id: 'participante-1',
+        employeeId: 'empleada-participante',
+        employee: { id: 'empleada-participante' },
+      },
     );
 
     await service.solicitarProrroga('servicio-grupal', 'usuario-participante');
@@ -143,7 +168,11 @@ describe('ServicesService solicitarProrroga', () => {
     const { service, notificar, startWaitTimeout } = armar({
       id: 'servicio-1',
       serviceType: 'individual',
-      empleada: { usuarioId: 'usuario-modelo', nombreArtistico: 'Ana' },
+      empleada: {
+        id: 'empleada-1',
+        usuarioId: 'usuario-modelo',
+        nombreArtistico: 'Ana',
+      },
       viajes: [choferEnEspera],
     });
     notificar.mockRejectedValue(new Error('sin red'));
